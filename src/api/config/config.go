@@ -104,5 +104,11 @@ func loadConfigFromFile(filePath string, configStruct *Configuration) error {
 	if err := yaml.Unmarshal(bytes, configStruct); err != nil {
 		return err
 	}
+	log.Info("Unmarshalled config fileptr:", configStruct)
+	log.Info("Unmarshalled config file:", *configStruct)
+	log.Info("Unmarshalled config repos:", (*configStruct).Repos)
+	log.Info("Unmarshalled config cors:", (*configStruct).Cors)
+	log.Info("Unmarshalled config redis:", (*configStruct).Storage)
+	log.Info("Unmarshalled config keystone:", (*configStruct).Keystone)
 	return nil
 }
