@@ -179,6 +179,8 @@ func (c *cachedCharts) Refresh() error {
 			// Only append the ones that have not failed
 			if it.err == nil {
 				chartsWithData = append(chartsWithData, it.chart)
+			} else {
+				log.Error("Error processing chart from index:", it.err)
 			}
 		}
 		updatedCharts[*repo.Name] = chartsWithData
