@@ -34,6 +34,7 @@ import (
 //go:generate swagger generate server --target ../pkg/swagger --name monocular --spec ../swagger-spec/swagger.yml
 
 func configureFlags(api *operations.MonocularAPI) {
+	// These are then used in main.go
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
 }
 
