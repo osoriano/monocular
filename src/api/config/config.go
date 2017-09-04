@@ -26,11 +26,19 @@ type Configuration struct {
 	CacheRefreshInterval int64 `yaml:"cacheRefreshInterval"`
 	Storage              StorageConfig
 	Initialized          bool
+	Keystone             KeystoneConfig
 }
 
 type StorageConfig struct {
 	Driver string
 	Host   string
+}
+
+type KeystoneConfig struct {
+	Enabled        bool
+	Url            string
+	CacheTime      int `yaml:"cacheTime"`
+	RequestTimeout int `yaml:"requestTimeout"`
 }
 
 // Cached version of the config

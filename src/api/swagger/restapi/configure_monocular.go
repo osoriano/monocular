@@ -2,12 +2,14 @@ package restapi
 
 import (
 	"crypto/tls"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
+	"github.com/databus23/keystone"
 	errors "github.com/go-openapi/errors"
 	runtime "github.com/go-openapi/runtime"
 	middleware "github.com/go-openapi/runtime/middleware"
@@ -145,7 +147,7 @@ func configureAPI(api *operations.MonocularAPI) http.Handler {
 
 	api.ServerShutdown = func() {}
 
-	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
+	return setupGlobalMiddleware(api.Serve(setupMiddlewares), conf)
 }
 
 // The TLS configuration before HTTPS server starts.
@@ -161,11 +163,48 @@ func setupMiddlewares(handler http.Handler) http.Handler {
 
 // The middleware configuration happens before anything, this middleware also applies to serving the swagger.json document.
 // So this is a good place to plug in a panic handling middleware, logging and metrics
-func setupGlobalMiddleware(handler http.Handler) http.Handler {
+func setupGlobalMiddleware(handler http.Handler, conf config.Configuration) http.Handler {
+	// Begin PF9 Change
+	// Enable Keystone authentication
+	if conf.Keystone.Enabled {
+		handler = setupKeystoneMiddleware(handler, conf.Keystone)
+	}
+	// End PF9 Change
+
 	handler = setupStaticFilesMiddleware(handler)
 	handler = setupCorsMiddleware(handler)
 	handler = gziphandler.GzipHandler(handler)
 	return handler
+}
+
+/**
+ * PF9 function
+ * Assumes request has been processed by the keystone auth middleware:
+ * github.com/databus23/keystone
+ *
+ * Verifies the user is able to authenticate with keystone
+ */
+func setupKeystoneMiddleware(next http.Handler,
+	keystoneConf config.KeystoneConfig) http.Handler {
+	keystoneAuth := keystone.New(keystoneConf.Url)
+	keystoneAuth.CacheTime = time.Duration(keystoneConf.CacheTime) * time.Minute
+	requestTimeout := time.Duration(keystoneConf.RequestTimeout) * time.Second
+	keystoneAuth.Client = &http.Client{
+		Timeout: requestTimeout,
+	}
+
+	keystoneCheck := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Identity-Status") == "Confirmed" {
+			next.ServeHTTP(w, r)
+		} else {
+			// The Auth middleware reponse doesn't include keystone status code
+			// Assuming 401 here
+			w.WriteHeader(401)
+			fmt.Fprintf(w, "Unable to validate token with Keystone")
+		}
+	})
+
+	return keystoneAuth.Handler(keystoneCheck)
 }
 
 // This middleware serves the files existing under cache.DataDirBase
